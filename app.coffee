@@ -9,6 +9,29 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
             .attr('width', c.width)
             .attr('height', c.height)
 
+  svg.append("svg:defs")
+    .append("svg:marker")
+      .attr("id", 'special')
+      .attr("viewBox", "0 0 10 10")
+      .attr("refX", 5)
+      .attr("refY", 0)
+      .attr("markerWidth", 6)
+      .attr("markerHeight", 12)
+      .attr("orient", "auto")
+    .append("svg:path")
+      .attr("d", "M 0,-5 L 10,0 L0,5");
+  svg.append("svg:defs")
+    .append("svg:marker")
+      .attr("id", 'special-start')
+      .attr("viewBox", "0 0 10 10")
+      .attr("refX", 5)
+      .attr("refY", 0)
+      .attr("markerWidth", 6)
+      .attr("markerHeight", 12)
+      .attr("orient", "auto")
+    .append("svg:path")
+      .attr("d", "M 10,-5 L 0,0 L10,5");
+
   links_g = svg.append('svg:g')
                 .attr('class', 'links')
 
@@ -44,6 +67,7 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
               colN = Math.floor(i/perColumn)
               20+colN*columnSpacing
             )
+            .style('fill', (d)->d.color)
 
   force = null
   forceGraph = ->
@@ -221,7 +245,7 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
           )
     
   scaleTweetCount = ->
-    _y = d3.scale.linear()
+    _y = d3.scale.log()
             .domain(stats.statuses_count)
             .range([0, c.height])
     y = (d,i) -> c.height - _y(d,i)
@@ -281,27 +305,31 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
 
     axis.append('text')
           .text('Loads a tweets')
-          .style('text-anchor', 'end')
+          .style('text-anchor', 'middle')
           .attr('y', 20)
-          .attr('x', c.width/2 - 10)
+          .attr('x', c.width/2)
 
     axis.append('text')
           .text('Nay tweets')
-          .style('text-anchor', 'end')
+          .style('text-anchor', 'middle')
           .attr('y', c.height - 20)
-          .attr('x', c.width/2 - 10)
+          .attr('x', c.width/2)
 
     axis.append('line')
           .attr('y1', c.height/2+0.5)
           .attr('y2', c.height/2+0.5)
-          .attr('x1', 0)
-          .attr('x2', c.width)
+          .attr('x1', 20)
+          .attr('x2', c.width-20)
+          .attr('marker-start', 'url(#special-start)')
+          .attr('marker-end', 'url(#special)')
 
     axis.append('line')
           .attr('x1', c.width/2+0.5)
           .attr('x2', c.width/2+0.5)
-          .attr('y1', 0)
-          .attr('y2', c.height)
+          .attr('y1', 35)
+          .attr('y2', c.height-45)
+          .attr('marker-start', 'url(#special-start)')
+          .attr('marker-end', 'url(#special)')
 
   addAxesAnnotations = ->
     note = (text, xp, yp, delay, duration) ->
@@ -317,8 +345,6 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
       .transition().duration(duration).delay(delay)
         .style('opacity', 0.9)
         
-      console.log t[0][0].clientWidth
-      console.log t[0][0].clientHeight
       r.attr('width', t[0][0].clientWidth+10)
         .attr('height', t[0][0].clientHeight+10)
         .attr('x', c.width*xp - (t[0][0].clientWidth+10)/2)
@@ -339,14 +365,14 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
 
   scatterPlot = ->
     addAxes()
-    _y = d3.scale.linear()
+    _y = d3.scale.log()
             .domain(stats.statuses_count)
-            .range([0, c.height])
+            .range([20, c.height-20])
     y = (d,i) -> c.height - _y(d,i)
 
     x = d3.time.scale()
             .domain(stats.signed_up)
-            .range([0, c.width])
+            .range([20, c.width-20])
 
 
     users.select('circle')
@@ -397,13 +423,11 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
                   .attr('y', (d)->
                     projection(d.geocoords)[1]
                   )
+                  .style('text-anchor', 'start')
                   .attr('transform', (d,i) ->
-                    angle = (i*5)%360
+                    angle = (i*10)%360
                     p = projection(d.geocoords)
-                    if angle > 180
-                      "rotate(#{angle},#{p[0]},#{p[1]})"
-                    else
-                      "rotate(#{angle},#{p[0]},#{p[1]})"
+                    "rotate(#{angle},#{p[0]},#{p[1]})translate(15,0)"
                   )
 
       spun = 0
@@ -418,7 +442,7 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
 
       spin = (timestep) ->
         spun = 360*ease(timestep/spinTimeLength)
-        scale = originalScale+10000*sease(timestep/scaleTimeLength)
+        scale = originalScale+20000*sease(timestep/scaleTimeLength)
 
         origin = [originalOrigin[0] + spun, originalOrigin[1]]
         projection.origin origin
@@ -448,15 +472,11 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
                   projection(d.geocoords)[1]
                 )
                 .attr('transform', (d,i) ->
-                  angle = (i*5)%360
+                  angle = (i*10)%360
                   p = projection(d.geocoords)
-                  "rotate(#{angle},#{p[0]},#{p[1]})"
+                  "rotate(#{angle},#{p[0]},#{p[1]})translate(15,0)"
                 )
-                .style('font-size', '12px')
-                #  d = 10
-                #  p = projection(d.geocoords)
-                #  "rotate(#{d},#{p[0]},#{p[1]})"
-                #)
+                .style('font-size', '15px')
 
       users.select('circle')
           .transition().duration(2000)
@@ -552,8 +572,6 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
     slides.push forceGraph
     slides.push circleTweetCount
     slides.push scaleTweetCount
-    #push scaleTweetCountLog
-    #slides.push addAxes
     slides.push scatterPlot
     slides.push addAxesAnnotations
     slides.push geoTweet

@@ -9,6 +9,8 @@
       transitionLength: 2000
     };
     svg = d3.select('body').append('svg').attr('width', c.width).attr('height', c.height);
+    svg.append("svg:defs").append("svg:marker").attr("id", 'special').attr("viewBox", "0 0 10 10").attr("refX", 5).attr("refY", 0).attr("markerWidth", 6).attr("markerHeight", 12).attr("orient", "auto").append("svg:path").attr("d", "M 0,-5 L 10,0 L0,5");
+    svg.append("svg:defs").append("svg:marker").attr("id", 'special-start').attr("viewBox", "0 0 10 10").attr("refX", 5).attr("refY", 0).attr("markerWidth", 6).attr("markerHeight", 12).attr("orient", "auto").append("svg:path").attr("d", "M 10,-5 L 0,0 L10,5");
     links_g = svg.append('svg:g').attr('class', 'links');
     countries_g = svg.append('svg:g').attr('class', 'countries');
     users = svg.selectAll('circle.user').data([], function(d) {
@@ -37,6 +39,8 @@
         var colN;
         colN = Math.floor(i / perColumn);
         return 20 + colN * columnSpacing;
+      }).style('fill', function(d) {
+        return d.color;
       });
     };
     force = null;
@@ -170,7 +174,7 @@
     };
     scaleTweetCount = function() {
       var y, _y;
-      _y = d3.scale.linear().domain(stats.statuses_count).range([0, c.height]);
+      _y = d3.scale.log().domain(stats.statuses_count).range([0, c.height]);
       y = function(d, i) {
         return c.height - _y(d, i);
       };
@@ -206,10 +210,10 @@
       axis = svg.append('svg:g').attr('class', 'axis');
       axis.append('text').text('Joined recently').style('text-anchor', 'end').attr('x', c.width - 20).attr('y', c.height / 2 - 10);
       axis.append('text').text('Joined ages ago').style('text-anchor', 'start').attr('x', 20).attr('y', c.height / 2 - 10);
-      axis.append('text').text('Loads a tweets').style('text-anchor', 'end').attr('y', 20).attr('x', c.width / 2 - 10);
-      axis.append('text').text('Nay tweets').style('text-anchor', 'end').attr('y', c.height - 20).attr('x', c.width / 2 - 10);
-      axis.append('line').attr('y1', c.height / 2 + 0.5).attr('y2', c.height / 2 + 0.5).attr('x1', 0).attr('x2', c.width);
-      return axis.append('line').attr('x1', c.width / 2 + 0.5).attr('x2', c.width / 2 + 0.5).attr('y1', 0).attr('y2', c.height);
+      axis.append('text').text('Loads a tweets').style('text-anchor', 'middle').attr('y', 20).attr('x', c.width / 2);
+      axis.append('text').text('Nay tweets').style('text-anchor', 'middle').attr('y', c.height - 20).attr('x', c.width / 2);
+      axis.append('line').attr('y1', c.height / 2 + 0.5).attr('y2', c.height / 2 + 0.5).attr('x1', 20).attr('x2', c.width - 20).attr('marker-start', 'url(#special-start)').attr('marker-end', 'url(#special)');
+      return axis.append('line').attr('x1', c.width / 2 + 0.5).attr('x2', c.width / 2 + 0.5).attr('y1', 35).attr('y2', c.height - 45).attr('marker-start', 'url(#special-start)').attr('marker-end', 'url(#special)');
     };
     addAxesAnnotations = function() {
       var note;
@@ -218,8 +222,6 @@
         r = svg.select('g.axis').append('rect').style('fill', '#66FF00');
         t = svg.select('g.axis').append('text').text(text);
         t.attr('x', c.width * xp).attr('y', c.height * yp).style('text-anchor', 'middle').style('opacity', 0).transition().duration(duration).delay(delay).style('opacity', 0.9);
-        console.log(t[0][0].clientWidth);
-        console.log(t[0][0].clientHeight);
         return r.attr('width', t[0][0].clientWidth + 10).attr('height', t[0][0].clientHeight + 10).attr('x', c.width * xp - (t[0][0].clientWidth + 10) / 2).attr('y', c.height * yp - (t[0][0].clientHeight + 20) / 2).style('opacity', 0).transition().duration(duration).delay(delay).style('opacity', 0.9);
       };
       note('Old Bores', 0.25, 0.25, 0, 1000);
@@ -233,11 +235,11 @@
     scatterPlot = function() {
       var x, y, _y;
       addAxes();
-      _y = d3.scale.linear().domain(stats.statuses_count).range([0, c.height]);
+      _y = d3.scale.log().domain(stats.statuses_count).range([20, c.height - 20]);
       y = function(d, i) {
         return c.height - _y(d, i);
       };
-      x = d3.time.scale().domain(stats.signed_up).range([0, c.width]);
+      x = d3.time.scale().domain(stats.signed_up).range([20, c.width - 20]);
       users.select('circle').transition().duration(c.transitionLength).attr('cx', function(d) {
         return x(d.signed_up);
       }).attr('cy', function(d) {
@@ -273,15 +275,11 @@
             return projection(d.geocoords)[0];
           }).attr('y', function(d) {
             return projection(d.geocoords)[1];
-          }).attr('transform', function(d, i) {
+          }).style('text-anchor', 'start').attr('transform', function(d, i) {
             var angle, p;
-            angle = (i * 5) % 360;
+            angle = (i * 10) % 360;
             p = projection(d.geocoords);
-            if (angle > 180) {
-              return "rotate(" + angle + "," + p[0] + "," + p[1] + ")";
-            } else {
-              return "rotate(" + angle + "," + p[0] + "," + p[1] + ")";
-            }
+            return "rotate(" + angle + "," + p[0] + "," + p[1] + ")translate(15,0)";
           });
         };
         spun = 0;
@@ -295,7 +293,7 @@
         spin = function(timestep) {
           var scale;
           spun = 360 * ease(timestep / spinTimeLength);
-          scale = originalScale + 10000 * sease(timestep / scaleTimeLength);
+          scale = originalScale + 20000 * sease(timestep / scaleTimeLength);
           origin = [originalOrigin[0] + spun, originalOrigin[1]];
           projection.origin(origin);
           circle.origin(origin);
@@ -317,10 +315,10 @@
           return projection(d.geocoords)[1];
         }).attr('transform', function(d, i) {
           var angle, p;
-          angle = (i * 5) % 360;
+          angle = (i * 10) % 360;
           p = projection(d.geocoords);
-          return "rotate(" + angle + "," + p[0] + "," + p[1] + ")";
-        }).style('font-size', '12px');
+          return "rotate(" + angle + "," + p[0] + "," + p[1] + ")translate(15,0)";
+        }).style('font-size', '15px');
         return users.select('circle').transition().duration(2000).attr('r', 3).attr('cx', function(d) {
           return projection(d.geocoords)[0];
         }).attr('cy', function(d) {

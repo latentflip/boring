@@ -124,6 +124,7 @@ class Scrape
         :friends_count => u[:extended_info]['friends_count'],
         :followers_count => u[:extended_info]['followers_count'],
         :avatar => u[:extended_info]['profile_image_url'],
+        :color => u[:extended_info]['profile_text_color']
       }
     end
   end
@@ -154,17 +155,15 @@ end
 
 s = Scrape.new
 
+s.save_new_users
+s.save_followings
+s.save_user_info
+s.locate_users
+
 File.open('users.json', 'w+') do |f|
   f.write JSON.dump(s.users_json)
 end
 File.open('links.json', 'w+') do |f|
   f.write JSON.dump(s.links_json)
 end
-#p s.users_json
-#p s.links_json
-__END__
-s.save_new_users
-s.save_followings
-s.save_user_info
-s.locate_users
 

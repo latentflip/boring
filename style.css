@@ -12,9 +12,7 @@ svg .countries path {
 svg .slide text {
   font-size: 150px; }
 svg .axis text {
-  fill: #000;
-  stroke: #000;
-  stroke-width: 1; }
+  fill: #000; }
 svg .axis line {
   stroke: #000;
   stroke-width: 3; }

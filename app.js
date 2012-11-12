@@ -2,42 +2,164 @@
 (function() {
 
   require(['jquery', 'd3', 'underscore'], function($, d3, _) {
-    var addAxes, addAxesAnnotations, c, circleTweetCount, countries_g, explode, geoTweet, listUsers, removeAxes, scaleTweetCount, scaleTweetCountLog, scatterPlot, slide, stats, svg, users;
+    var addAxes, addAxesAnnotations, c, circleTweetCount, countDown, countries_g, explode, force, forceGraph, geoTweet, links_g, listUsers, nextSlide, philSlide, removeAxes, scaleTweetCount, scaleTweetCountLog, scatterPlot, slide, stats, svg, users;
     c = {
       width: $(document).width() * 0.98,
       height: $(document).height() * 0.97,
       transitionLength: 2000
     };
     svg = d3.select('body').append('svg').attr('width', c.width).attr('height', c.height);
+    links_g = svg.append('svg:g').attr('class', 'links');
     countries_g = svg.append('svg:g').attr('class', 'countries');
     users = svg.selectAll('circle.user').data([], function(d) {
       return d.user_id;
     });
     users = null;
     stats = {};
+    nextSlide = null;
     listUsers = function() {
       var columnSpacing, perColumn, spacing;
       perColumn = 20;
-      spacing = c.height / perColumn;
-      columnSpacing = c.width / 5;
+      spacing = (c.height - 40) / perColumn;
+      columnSpacing = (c.width - 40) / 5;
+      users.append('circle').attr('r', 5).attr('cy', function(d, i) {
+        return 20 + (i % perColumn) * spacing;
+      }).attr('cx', function(d, i) {
+        var colN;
+        colN = Math.floor(i / perColumn);
+        return 20 + colN * columnSpacing;
+      }).style('fill', '#FF6600');
       return users.append('text').text(function(d) {
         return d.screen_name;
       }).attr('y', function(d, i) {
-        return (i % perColumn) * spacing;
+        return 20 + (i % perColumn) * spacing + 10;
       }).attr('x', function(d, i) {
         var colN;
         colN = Math.floor(i / perColumn);
-        return colN * columnSpacing;
+        return 20 + colN * columnSpacing;
+      });
+    };
+    force = null;
+    forceGraph = function() {
+      return d3.json('twitterdata/links.json', function(links) {
+        var find, link, node, nodetext, thickness;
+        force = d3.layout.force().charge(-50).linkDistance(400).size([c.width, c.height]);
+        find = function(coll, test) {
+          var i, _i, _ref;
+          for (i = _i = 0, _ref = coll.length; _i < _ref; i = _i += 1) {
+            if (test(coll[i])) {
+              return i;
+            }
+          }
+          return -1;
+        };
+        links = links.map(function(link) {
+          link.source = find(users.data(), function(u) {
+            return u.id === link.source;
+          });
+          link.target = find(users.data(), function(u) {
+            return u.id === link.target;
+          });
+          link.weight = link.value;
+          return link;
+        });
+        links = links.filter(function(link) {
+          return link.source && link.source > 0 && link.target && link.target > 0;
+        });
+        force.nodes(users.data()).links(links).linkStrength(function(d) {
+          var strength;
+          return strength = d.value / d3.max(links, function(d) {
+            return d.value;
+          });
+        }).start();
+        thickness = d3.scale.linear().range([0, 5]).domain([
+          0, d3.max(links, function(d) {
+            return d.value;
+          })
+        ]);
+        link = links_g.selectAll('line.link').data(links).enter().append('line').attr('class', 'link').attr('stroke-width', function(d) {
+          return thickness(d.value);
+        }).attr('stroke', '#ddd');
+        node = svg.selectAll('circle').attr('class', 'node').attr('r', 5).style('fill', '#FF6600');
+        nodetext = svg.selectAll('text').attr('class', 'nodetext').text(function(d) {
+          return d.screen_name;
+        });
+        return force.on('tick', function() {
+          node.attr('cx', function(d) {
+            return d.x;
+          }).attr('cy', function(d) {
+            return d.y;
+          });
+          nodetext.attr('x', function(d) {
+            return d.x;
+          }).attr('y', function(d) {
+            return d.y;
+          });
+          return link.attr('x1', function(d) {
+            return d.source.x;
+          }).attr('y1', function(d) {
+            return d.source.y;
+          }).attr('x2', function(d) {
+            return d.target.x;
+          }).attr('y2', function(d) {
+            return d.target.y;
+          });
+        });
+      });
+    };
+    countDown = function() {
+      var arc, l, num, pie, s;
+      s = svg.append('svg:g').attr('class', 'slide');
+      arc = function(start, end) {
+        start = (start / 180) * Math.PI;
+        end = (end / 180) * Math.PI;
+        return d3.svg.arc().innerRadius(0).outerRadius(1000).startAngle(start).endAngle(end)();
+      };
+      pie = s.append('path').attr('d', arc(0, 0)).attr('fill', '#787878').attr('transform', "translate(" + (c.width / 2) + "," + (c.height / 2) + ")");
+      s.append('circle').attr('cx', c.width / 2).attr('cy', c.height / 2).attr('r', 200).style('stroke', 'rgba(255,255,255,0.8)').style('stroke-width', 5);
+      s.append('circle').attr('cx', c.width / 2).attr('cy', c.height / 2).attr('r', 230).style('stroke', 'rgba(255,255,255,0.5)').style('stroke-width', 5);
+      s.append('line').attr('x1', 0).attr('x2', c.width).attr('y1', c.height / 2).attr('y2', c.height / 2).attr('stroke', '#000').attr('stroke-width', 5);
+      s.append('line').attr('x1', c.width / 2).attr('x2', c.width / 2).attr('y1', 0).attr('y2', c.height).attr('stroke', '#000').attr('stroke-width', 5);
+      num = s.append('text').text('5').style('fill', '#000').style('font-size', 300).style('text-anchor', 'middle').style('dominant-baseline', 'central').attr('x', c.width / 2).attr('y', c.height / 2);
+      l = 1000;
+      return d3.timer(function(n) {
+        var count, deg, updown;
+        deg = (n / l) * 360;
+        count = Math.floor(n / l);
+        if (count % 2 === 0) {
+          updown = 'up';
+        } else {
+          updown = 'down';
+        }
+        if (count >= 5) {
+          s.transition().duration(1000).attr('transform', 'translate(-5000,0)').each('end', function() {
+            d3.selectAll('g.slide').remove();
+            return nextSlide();
+          });
+          return true;
+        } else {
+          num.text(5 - count);
+          if (updown === 'up') {
+            pie.attr('d', arc(0, deg % 360));
+          } else {
+            pie.attr('d', arc(deg % 360, 359));
+          }
+          return false;
+        }
       });
     };
     circleTweetCount = function() {
-      users.append('circle').transition().duration(c.transitionLength).attr('r', function(d) {
-        return d.statuses_count;
+      var r;
+      force.stop();
+      svg.selectAll('line.link').remove();
+      r = d3.scale.log().domain(stats.statuses_count).range([0, c.height * 0.75]);
+      users.select('circle').transition().duration(c.transitionLength).style('fill', 'none').attr('r', function(d) {
+        return r(d.statuses_count);
       }).attr('cx', c.width / 2).attr('cy', c.height * 0.75);
       return users.select('text').transition().duration(c.transitionLength).text(function(d) {
         return d.screen_name;
       }).style('text-anchor', 'middle').attr('x', c.width / 2).attr('y', function(d) {
-        return (c.height * 0.75) - d.statuses_count;
+        return (c.height * 0.75) - r(d.statuses_count);
       }).attr('transform', function(d, i) {
         var cx, cy;
         d = ((i * 5) % 90) - 45;
@@ -90,10 +212,20 @@
       return axis.append('line').attr('x1', c.width / 2 + 0.5).attr('x2', c.width / 2 + 0.5).attr('y1', 0).attr('y2', c.height);
     };
     addAxesAnnotations = function() {
-      svg.select('g.axis').append('text').text('Too keen').attr('x', c.width * 0.75).attr('y', c.height * 0.25);
-      svg.select('g.axis').append('text').text('Old Bores').attr('x', c.width * 0.25).attr('y', c.height * 0.25);
-      svg.select('g.axis').append('text').text('Shy and retiring').attr('x', c.width * 0.25).attr('y', c.height * 0.75);
-      return svg.select('g.axis').append('text').text('Learning the ropes').attr('x', c.width * 0.75).attr('y', c.height * 0.75);
+      var note;
+      note = function(text, xp, yp, delay, duration) {
+        var r, t;
+        r = svg.select('g.axis').append('rect').style('fill', '#66FF00');
+        t = svg.select('g.axis').append('text').text(text);
+        t.attr('x', c.width * xp).attr('y', c.height * yp).style('text-anchor', 'middle').style('opacity', 0).transition().duration(duration).delay(delay).style('opacity', 0.9);
+        console.log(t[0][0].clientWidth);
+        console.log(t[0][0].clientHeight);
+        return r.attr('width', t[0][0].clientWidth + 10).attr('height', t[0][0].clientHeight + 10).attr('x', c.width * xp - (t[0][0].clientWidth + 10) / 2).attr('y', c.height * yp - (t[0][0].clientHeight + 20) / 2).style('opacity', 0).transition().duration(duration).delay(delay).style('opacity', 0.9);
+      };
+      note('Old Bores', 0.25, 0.25, 0, 1000);
+      note('A bit Keen', 0.75, 0.25, 1000, 1000);
+      note('Learning the ropes', 0.75, 0.75, 2000, 1000);
+      return note('Stalkers', 0.25, 0.75, 3000, 1000);
     };
     removeAxes = function() {
       return svg.select('g.axis').remove();
@@ -120,8 +252,9 @@
     geoTweet = function() {
       var circle, clip, origin, path, projection,
         _this = this;
+      removeAxes();
       origin = [-3.22, 55.95];
-      projection = d3.geo.azimuthal().scale(10).origin(origin).mode('orthographic').translate([c.width / 2, c.height / 2]);
+      projection = d3.geo.azimuthal().scale(100).origin(origin).mode('orthographic').translate([c.width / 2, c.height / 2]);
       path = d3.geo.path().projection(projection).pointRadius(3);
       circle = d3.geo.greatCircle().origin(projection.origin());
       clip = function(d) {
@@ -197,68 +330,68 @@
     };
     slide = function(text) {
       return function() {
-        slide = svg.append('svg:g').attr('class', 'slide');
-        return slide.append('text').text(text).style('text-anchor', 'middle').attr('y', c.height / 2).attr('x', c.width + 500).transition().duration(c.transitionLength).attr('x', c.width / 2);
+        var s;
+        s = svg.append('svg:g').attr('class', 'slide');
+        s.append('text').text(text).style('text-anchor', 'middle').attr('y', c.height / 2).attr('x', c.width + 500).transition().duration(c.transitionLength / 2).attr('x', c.width / 2);
+        return s;
       };
+    };
+    philSlide = function() {
+      slide('@philip_roberts')();
+      console.log(svg.select('g.slide'));
+      return svg.select('g.slide').append('text').text('↘').attr('x', c.width * 0.2 - 2000).attr('y', c.height * 0.8 - 2000).style('text-anchor', 'middle').style('font-size', 200).style('fill', '#FF6600').transition().duration(1000).delay(500).ease('elastic').attr('x', c.width * 0.2).attr('y', c.height * 0.8);
     };
     explode = function() {
       svg.selectAll('text').transition().duration(c.transitionLength).attr('x', -500).remove();
       svg.selectAll('path').transition().duration(c.transitionLength).attr('transform', "translate(-50000,0)").remove();
       return svg.selectAll('circle').transition().duration(c.transitionLength).attr('cx', -500).remove();
     };
-    return d3.json('locations.json', function(locations) {
-      return d3.json('users.json', function(coll) {
-        var currSlide, nextSlide, slides;
-        coll = coll.map(function(u) {
-          u.geocoords = locations[u.id];
-          u.signed_up = new Date(Date.parse(u.created_at));
-          return u;
-        });
-        coll = coll.filter(function(u) {
-          return u.geocoords;
-        });
-        coll = coll.slice(0, 101);
-        coll = _.sortBy(coll, function(u) {
-          return u.statuses_count;
-        });
-        users = svg.selectAll('g.user').data(coll, function(d) {
-          return d.user_id;
-        });
-        users.enter().append('svg:g').attr('class', 'user');
-        stats.statuses_count = d3.extent(coll, function(d) {
-          return d.statuses_count;
-        });
-        stats.signed_up = d3.extent(coll, function(d) {
-          return d.signed_up;
-        });
-        currSlide = 0;
-        slides = [];
-        nextSlide = function() {
-          slide = svg.selectAll('g.slide');
-          if (slide[0].length > 0) {
-            slide.select('text').transition().duration(500).attr('x', -500).remove();
-            slides[currSlide]();
-          } else {
-            slides[currSlide]();
-          }
-          return currSlide++;
-        };
-        slides.push(slide("Hello"));
-        slides.push(slide("Tweets"));
-        slides.push(slide("How many?"));
-        slides.push(listUsers);
-        slides.push(circleTweetCount);
-        slides.push(scaleTweetCount);
-        slides.push(scatterPlot);
-        slides.push(addAxesAnnotations);
-        slides.push(removeAxes);
-        slides.push(geoTweet);
-        slides.push(explode);
-        slides.push(slide("So like, wth?"));
-        slides.push(slide("So like, wth?"));
-        nextSlide();
-        return svg.on('click', nextSlide);
+    return d3.json('twitterdata/users.json', function(coll) {
+      var currSlide, slides;
+      coll = coll.map(function(u) {
+        u.geocoords = u.coords || [-3.22, 55.95];
+        u.signed_up = new Date(Date.parse(u.signed_up));
+        return u;
       });
+      users = svg.selectAll('g.user').data(coll, function(d) {
+        return d.user_id;
+      });
+      users.enter().append('svg:g').attr('class', 'user');
+      stats.statuses_count = d3.extent(coll, function(d) {
+        return d.statuses_count;
+      });
+      stats.signed_up = d3.extent(coll, function(d) {
+        return d.signed_up;
+      });
+      currSlide = 0;
+      slides = [];
+      nextSlide = function() {
+        var s;
+        s = svg.selectAll('g.slide');
+        if (s[0].length > 0) {
+          s.select('text').transition().duration(500).attr('x', -500).remove();
+          slides[currSlide]();
+        } else {
+          slides[currSlide]();
+        }
+        return currSlide++;
+      };
+      slides.push(countDown);
+      slides.push(slide("Hello"));
+      slides.push(philSlide);
+      slides.push(slide("d3.js"));
+      slides.push(slide("Showreel"));
+      slides.push(listUsers);
+      slides.push(forceGraph);
+      slides.push(circleTweetCount);
+      slides.push(scaleTweetCount);
+      slides.push(scatterPlot);
+      slides.push(addAxesAnnotations);
+      slides.push(geoTweet);
+      slides.push(explode);
+      slides.push(slide("So like, wth?"));
+      nextSlide();
+      return svg.on('click', nextSlide);
     });
   });
 

@@ -76,7 +76,7 @@
             return d.value;
           });
         }).start();
-        thickness = d3.scale.linear().range([0, 5]).domain([
+        thickness = d3.scale.linear().range([1, 5]).domain([
           0, d3.max(links, function(d) {
             return d.value;
           })
@@ -374,11 +374,11 @@
         }
         return currSlide++;
       };
-      slides.push(countDown);
       slides.push(slide("Hello"));
       slides.push(philSlide);
       slides.push(slide("d3.js"));
       slides.push(slide("Showreel"));
+      slides.push(countDown);
       slides.push(listUsers);
       slides.push(forceGraph);
       slides.push(circleTweetCount);

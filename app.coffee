@@ -98,7 +98,7 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
             .start()
       
       thickness = d3.scale.linear()
-                      .range([0,5])
+                      .range([1,5])
                       .domain([0, d3.max(links, (d)->d.value)])
            
       link = links_g.selectAll('line.link')
@@ -563,11 +563,11 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
         slides[currSlide]()
       currSlide++
 
-    slides.push countDown
     slides.push slide("Hello")
     slides.push philSlide
     slides.push slide("d3.js")
     slides.push slide("Showreel")
+    slides.push countDown
     slides.push listUsers
     slides.push forceGraph
     slides.push circleTweetCount

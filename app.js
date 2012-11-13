@@ -466,6 +466,16 @@
       slides.push(slide("Hello"));
       slides.push(philSlide);
       slides.push(slide("data + d3.js"));
+      slides.push(countDown);
+      slides.push(listUsers);
+      slides.push(forceGraph);
+      slides.push(chords);
+      slides.push(circleTweetCount);
+      slides.push(scaleTweetCount);
+      slides.push(scatterPlot);
+      slides.push(addAxesAnnotations);
+      slides.push(geoTweet);
+      slides.push(explode);
       slides.push(slide("so, like, holy cow!"));
       slides.push(slide("but, wat?"));
       slides.push(slide("data + html/svg"));

@@ -2,7 +2,7 @@
 (function() {
 
   require(['jquery', 'd3', 'underscore'], function($, d3, _) {
-    var addAxes, addAxesAnnotations, c, circleTweetCount, countDown, countries_g, explode, force, forceGraph, geoTweet, links_g, listUsers, nextSlide, philSlide, removeAxes, scaleTweetCount, scatterPlot, slide, stats, svg, users;
+    var addAxes, addAxesAnnotations, axis, c, chords, circleTweetCount, countDown, countries_g, explode, force, forceGraph, geoTweet, links_g, listUsers, nextSlide, philSlide, removeAxes, scaleTweetCount, scatterPlot, slide, stats, svg, users;
     c = {
       width: $(document).width() * 0.98,
       height: $(document).height() * 0.97,
@@ -27,11 +27,13 @@
       columnSpacing = (c.width - padding * 2) / 5;
       users.append('circle').attr('class', 'user').attr('r', 24).attr('cy', function(d, i) {
         return padding + (i % perColumn) * spacing;
+      }).attr('cx', -100).style('stroke', '#FF6600').style('stroke-width', 2).transition().duration(100).delay(function(d, i) {
+        return i * 100 - 50;
       }).attr('cx', function(d, i) {
         var colN;
         colN = Math.floor(i / perColumn);
         return padding + colN * columnSpacing;
-      }).style('stroke', '#FF6600').style('stroke-width', 2);
+      });
       clip = svg.append('clipPath').attr('id', 'clipcircle').attr('clipPathUnits', 'objectBoundingBox').append('circle').attr('r', 0.5).attr('cx', 0.5).attr('cy', 0.5);
       users.append('image').attr('class', 'user').attr('xlink:href', function(d) {
         return d.avatar;
@@ -39,31 +41,35 @@
         return d.avatar;
       }).attr('width', 48).attr('height', 48).attr('y', function(d, i) {
         return padding + (i % perColumn) * spacing - 24;
+      }).attr('x', -100).style('fill', '#FF6600').style('clip-path', 'url(#clipcircle)').transition().duration(100).delay(function(d, i) {
+        return i * 100 - 50;
       }).attr('x', function(d, i) {
         var colN;
         colN = Math.floor(i / perColumn);
         return padding + colN * columnSpacing - 24;
-      }).style('fill', '#FF6600').style('clip-path', 'url(#clipcircle)');
+      });
       return users.append('text').attr('class', 'user').text(function(d) {
         return d.screen_name;
       }).attr('y', function(d, i) {
         return padding + (i % perColumn) * spacing;
+      }).attr('x', c.width + 500).style('fill', function(d) {
+        return d.color;
+      }).style('dominant-baseline', 'middle').transition().duration(100).delay(function(d, i) {
+        return i * 100 - 50;
       }).attr('x', function(d, i) {
         var colN;
         colN = Math.floor(i / perColumn);
         return padding + colN * columnSpacing + 35;
-      }).style('fill', function(d) {
-        return d.color;
-      }).style('dominant-baseline', 'middle');
+      });
     };
     force = null;
     forceGraph = function() {
       return d3.json('twitterdata/links.json', function(links) {
-        var find, link, node, nodeC, nodetext, thickness;
+        var find, link, node, nodeC, nodetext, szscale, thickness;
         force = d3.layout.force().charge(-100).linkDistance(400).size([c.width, c.height]).gravity(0.05);
         find = function(coll, test) {
           var i, _i, _ref;
-          for (i = _i = 0, _ref = coll.length; _i < _ref; i = _i += 1) {
+          for (i = _i = 0, _ref = coll.length; 0 <= _ref ? _i < _ref : _i > _ref; i = 0 <= _ref ? ++_i : --_i) {
             if (test(coll[i])) {
               return i;
             }
@@ -80,9 +86,6 @@
           link.weight = link.value;
           return link;
         });
-        links = links.filter(function(link) {
-          return link.source && link.source > 0 && link.target && link.target > 0;
-        });
         force.nodes(users.data()).links(links).linkStrength(function(d) {
           var strength;
           return strength = d.value / d3.max(links, function(d) {
@@ -97,16 +100,23 @@
         link = links_g.selectAll('line.link').data(links).enter().append('line').attr('class', 'link').attr('stroke-width', function(d) {
           return thickness(d.value);
         }).attr('stroke', '#ccc');
-        node = svg.selectAll('image.user');
-        nodeC = svg.selectAll('circle.user');
+        szscale = d3.scale.log().domain([1, 30]).range([32, 64]);
+        node = svg.selectAll('image.user').attr('width', function(d) {
+          return szscale(d.weight || 1);
+        }).attr('height', function(d) {
+          return szscale(d.weight || 1);
+        });
+        nodeC = svg.selectAll('circle.user').attr('r', function(d) {
+          return szscale(d.weight || 1) / 2;
+        });
         nodetext = svg.selectAll('text.user').attr('class', 'nodetext').text(function(d) {
           return d.screen_name;
         });
         return force.on('tick', function() {
           node.attr('x', function(d) {
-            return d.x - 24;
+            return d.x - szscale(d.weight || 1) / 2;
           }).attr('y', function(d) {
-            return d.y - 24;
+            return d.y - szscale(d.weight || 1) / 2;
           });
           nodeC.attr('cx', function(d) {
             return d.x;
@@ -130,6 +140,57 @@
         });
       });
     };
+    chords = function() {
+      var chordRadius, chordRadius2, isize, ul, xmath, xmath2, ymath, ymath2;
+      force.stop();
+      chordRadius = 250;
+      chordRadius2 = 280;
+      ul = users[0].length;
+      xmath = function(d, i) {
+        return c.width / 2 + chordRadius * Math.cos((i / ul) * 2 * Math.PI);
+      };
+      ymath = function(d, i) {
+        return c.height / 2 + chordRadius * Math.sin((i / ul) * 2 * Math.PI);
+      };
+      xmath2 = function(d, i) {
+        return c.width / 2 + chordRadius2 * Math.cos((i / ul) * 2 * Math.PI);
+      };
+      ymath2 = function(d, i) {
+        return c.height / 2 + chordRadius2 * Math.sin((i / ul) * 2 * Math.PI);
+      };
+      isize = 32;
+      users.select('image').transition().duration(c.transitionLength).attr('width', isize).attr('height', isize).attr('x', function(d, i) {
+        return xmath(d, i) - isize / 2;
+      }).attr('y', function(d, i) {
+        return ymath(d, i) - isize / 2;
+      });
+      users.select('circle').transition().duration(c.transitionLength).attr('r', isize / 2).attr('cx', xmath).attr('cy', ymath);
+      users.select('text').transition().duration(c.transitionLength).attr('x', xmath2).attr('y', ymath2).style('text-anchor', function(d, i) {
+        if (xmath2(d, i) < c.width / 2) {
+          return 'end';
+        } else {
+          return 'start';
+        }
+      }).attr('transform', function(d, i) {
+        var deg, x, y;
+        deg = (i / ul) * 360;
+        x = xmath2(d, i);
+        y = ymath2(d, i);
+        if (xmath2(d, i) < c.width / 2) {
+          deg = deg - 180;
+        }
+        return "rotate(" + deg + "," + x + "," + y + ")";
+      });
+      return svg.selectAll('line.link').transition().duration(c.transitionLength).attr('x1', function(d) {
+        return xmath(d, d.source.index);
+      }).attr('x2', function(d) {
+        return xmath(d, d.target.index);
+      }).attr('y1', function(d) {
+        return ymath(d, d.source.index);
+      }).attr('y2', function(d) {
+        return ymath(d, d.target.index);
+      });
+    };
     countDown = function() {
       var arc, l, num, pie, s;
       s = svg.append('svg:g').attr('class', 'slide');
@@ -144,7 +205,7 @@
       s.append('line').attr('x1', 0).attr('x2', c.width).attr('y1', c.height / 2).attr('y2', c.height / 2).attr('stroke', '#000').attr('stroke-width', 5);
       s.append('line').attr('x1', c.width / 2).attr('x2', c.width / 2).attr('y1', 0).attr('y2', c.height).attr('stroke', '#000').attr('stroke-width', 5);
       num = s.append('text').text('5').style('fill', '#000').style('font-size', 300).style('text-anchor', 'middle').style('dominant-baseline', 'central').attr('x', c.width / 2).attr('y', c.height / 2);
-      l = 10;
+      l = 1000;
       return d3.timer(function(n) {
         var count, deg, updown;
         deg = (n / l) * 360;
@@ -171,11 +232,22 @@
         }
       });
     };
+    axis = svg.append('svg:g').attr('class', 'axis');
     circleTweetCount = function() {
       var r;
       force.stop();
       svg.selectAll('line.link').remove();
       r = d3.scale.log().domain(stats.statuses_count).range([0, c.height * 0.75]);
+      axis.append('line').attr('class', 'xaxis').attr('x1', c.width / 2 + 0.5).attr('y1', c.height * 0.75).attr('x2', c.width / 2 + 0.5).attr('y2', c.height * 0.75).transition().duration(c.transitionLength).attr('x2', c.width - 150).attr('y2', 150).attr('marker-start', 'url(#special-start)').attr('marker-end', 'url(#special)');
+      axis.append('text').text('Loads a tweets').style('text-anchor', '').attr('x', c.width / 2).attr('y', c.height * 0.75).attr('transform', function() {
+        var deg;
+        deg = -2 * Math.tan(c.height / c.width) * (90 / Math.PI);
+        return "rotate(" + deg + "," + (c.width / 2) + "," + (c.height * 0.75) + ")";
+      }).transition().duration(c.transitionLength).attr('x', c.width - 120).attr('y', 145).attr('transform', function() {
+        var deg;
+        deg = -2 * Math.tan(c.height / c.width) * (90 / Math.PI);
+        return "rotate(" + deg + "," + (c.width - 145) + "," + 120 + ")";
+      });
       users.select('image').style('opacity', 0);
       users.select('circle').transition().duration(c.transitionLength).style('fill', 'none').attr('r', function(d) {
         return r(d.statuses_count);
@@ -194,45 +266,46 @@
     };
     scaleTweetCount = function() {
       var y, _y;
-      _y = d3.scale.log().domain(stats.statuses_count).range([0, c.height]);
+      _y = d3.scale.log().domain(stats.statuses_count).range([40, c.height - 40]);
       y = function(d, i) {
         return c.height - _y(d, i);
       };
       users.select('image').transition().duration(c.transitionLength).style('opacity', 1).attr('y', function(d) {
         return y(d.statuses_count) - 24;
-      }).attr('x', c.width / 2 - 24);
+      }).attr('x', c.width / 2 - 24 + 50);
       users.select('circle').transition().duration(c.transitionLength).style('opacity', 0).attr('r', 24).attr('cy', function(d) {
         return y(d.statuses_count);
       });
-      return users.select('text').transition().duration(c.transitionLength).attr('x', (c.width / 2) + 30).attr('y', function(d) {
+      users.select('text').transition().duration(c.transitionLength).attr('x', (c.width / 2) + 80).attr('y', function(d) {
         return y(d.statuses_count);
       }).style('text-anchor', 'start').attr('transform', function(d) {
         return "rotate(0)";
       });
+      axis.select('line.xaxis').transition().duration(c.transitionLength).attr('x1', c.width / 2 + 0.5).attr('x2', c.width / 2 + 0.5).attr('y2', 35).attr('y1', c.height - 45);
+      return axis.select('text').transition().duration(c.transitionLength).attr('y', 20).attr('x', c.width / 2).attr('transform', '').style('text-anchor', 'middle');
     };
     addAxes = function() {
-      var axis, x, y, _y;
+      var x, y, _y;
       _y = d3.scale.linear().domain(stats.statuses_count).range([0, c.height]);
       y = function(d, i) {
         return c.height - _y(d, i);
       };
       x = d3.time.scale().domain(stats.signed_up).range([0, c.width]);
-      axis = svg.append('svg:g').attr('class', 'axis');
       axis.append('text').text('Joined recently').style('text-anchor', 'end').attr('x', c.width - 20).attr('y', c.height / 2 - 10);
       axis.append('text').text('Joined ages ago').style('text-anchor', 'start').attr('x', 20).attr('y', c.height / 2 - 10);
-      axis.append('text').text('Loads a tweets').style('text-anchor', 'middle').attr('y', 20).attr('x', c.width / 2);
       axis.append('text').text('Nay tweets').style('text-anchor', 'middle').attr('y', c.height - 20).attr('x', c.width / 2);
       axis.append('line').attr('y1', c.height / 2 + 0.5).attr('y2', c.height / 2 + 0.5).attr('x1', 20).attr('x2', c.width - 20).attr('marker-start', 'url(#special-start)').attr('marker-end', 'url(#special)');
       return axis.append('line').attr('x1', c.width / 2 + 0.5).attr('x2', c.width / 2 + 0.5).attr('y1', 35).attr('y2', c.height - 45).attr('marker-start', 'url(#special-start)').attr('marker-end', 'url(#special)');
     };
     addAxesAnnotations = function() {
-      var note;
+      var maxis, note;
+      maxis = svg.append('svg:g').attr('class', 'axisan');
       note = function(text, xp, yp, delay, duration) {
         var r, t;
-        r = svg.select('g.axis').append('rect').style('fill', '#66FF00');
-        t = svg.select('g.axis').append('text').text(text);
-        t.attr('x', c.width * xp).attr('y', c.height * yp).style('text-anchor', 'middle').style('opacity', 0).transition().duration(duration).delay(delay).style('opacity', 0.9);
-        return r.attr('width', t[0][0].clientWidth + 10).attr('height', t[0][0].clientHeight + 10).attr('x', c.width * xp - (t[0][0].clientWidth + 10) / 2).attr('y', c.height * yp - (t[0][0].clientHeight + 20) / 2).style('opacity', 0).transition().duration(duration).delay(delay).style('opacity', 0.9);
+        r = maxis.append('rect').style('fill', '#66FF00');
+        t = maxis.append('text').text(text);
+        t.attr('x', c.width * xp).attr('y', c.height * yp).style('text-anchor', 'middle').style('opacity', 0).transition().duration(duration).delay(delay).style('opacity', 1);
+        return r.attr('width', t[0][0].clientWidth + 10).attr('height', t[0][0].clientHeight + 10).attr('x', c.width * xp - (t[0][0].clientWidth + 10) / 2).attr('y', c.height * yp - (t[0][0].clientHeight + 20) / 2).style('opacity', 0).transition().duration(duration).delay(delay).style('opacity', 1);
       };
       note('Old Bores', 0.25, 0.25, 0, 1000);
       note('A bit Keen', 0.75, 0.25, 1000, 1000);
@@ -240,7 +313,8 @@
       return note('Stalkers', 0.25, 0.75, 3000, 1000);
     };
     removeAxes = function() {
-      return svg.select('g.axis').remove();
+      svg.selectAll('g.axis').remove();
+      return svg.selectAll('g.axisan').remove();
     };
     scatterPlot = function() {
       var x, y, _y;
@@ -346,14 +420,13 @@
       return function() {
         var s;
         s = svg.append('svg:g').attr('class', 'slide');
-        s.append('text').text(text).style('text-anchor', 'middle').attr('y', c.height / 2).attr('x', c.width + 500).transition().duration(c.transitionLength / 2).attr('x', c.width / 2);
+        s.append('text').text(text).style('text-anchor', 'middle').attr('y', c.height / 2).attr('x', c.width + 500).attr('width', c.width * 0.75).attr('height', c.width * 0.75).transition().duration(c.transitionLength / 2).attr('x', c.width / 2);
         return s;
       };
     };
     philSlide = function() {
       slide('@philip_roberts')();
-      console.log(svg.select('g.slide'));
-      return svg.select('g.slide').append('text').text('↘').attr('x', c.width * 0.2 - 2000).attr('y', c.height * 0.8 - 2000).style('text-anchor', 'middle').style('font-size', 200).style('fill', '#FF6600').transition().duration(1000).delay(500).ease('elastic').attr('x', c.width * 0.2).attr('y', c.height * 0.8);
+      return svg.select('g.slide').append('text').text('←').attr('x', c.width + 500).attr('y', c.height * 0.8).style('text-anchor', 'middle').style('font-size', 200).style('fill', '#FF6600').transition().duration(5000).delay(500).ease('elastic', 10, 10).attr('x', c.width * 0.2);
     };
     explode = function() {
       svg.selectAll('text').transition().duration(c.transitionLength).attr('x', -500).remove();
@@ -390,15 +463,19 @@
         }
         return currSlide++;
       };
-      slides.push(listUsers);
-      slides.push(forceGraph);
-      slides.push(circleTweetCount);
-      slides.push(scaleTweetCount);
-      slides.push(scatterPlot);
-      slides.push(addAxesAnnotations);
-      slides.push(geoTweet);
-      slides.push(explode);
-      slides.push(slide("So like, wth?"));
+      slides.push(slide("Hello"));
+      slides.push(philSlide);
+      slides.push(slide("data + d3.js"));
+      slides.push(slide("so, like, holy cow!"));
+      slides.push(slide("but, wat?"));
+      slides.push(slide("data + html/svg"));
+      slides.push(slide("good for"));
+      slides.push(slide("not for"));
+      slides.push(slide("concepts:"));
+      slides.push(slide("data binding"));
+      slides.push(slide("scales/projections"));
+      slides.push(slide("who's using it?"));
+      slides.push(slide("questions?"));
       nextSlide();
       svg.on('click', nextSlide);
       return $('body').on('keypress', function() {

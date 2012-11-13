@@ -705,7 +705,19 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
 
     slides.push slide("Hello")
     slides.push philSlide
-    slides.push slide("data + d3.js")
+    slides.push slide("d3.js")
+    slides.push slide("data")
+    slides.push slide("html/svg")
+    slides.push slide("it's a bit, wat?")
+    slides.push slide("and a bit wow")
+    slides.push slide("concepts:")
+    slides.push slide("declarative")
+    slides.push slide("data binding")
+    slides.push slide("scales/projections")
+    slides.push slide("good for")
+    slides.push slide("not for")
+    slides.push slide("who's using it?")
+    slides.push slide("demo")
     slides.push countDown
     slides.push listUsers
     slides.push forceGraph
@@ -717,17 +729,10 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
     slides.push geoTweet
     slides.push explode
     slides.push slide("so, like, holy cow!")
-    slides.push slide("but, wat?")
-    slides.push slide("data + html/svg")
-    slides.push slide("good for")
-    slides.push slide("not for")
-    slides.push slide("concepts:")
-    slides.push slide("data binding")
-    slides.push slide("scales/projections")
-    slides.push slide("who's using it?")
     slides.push slide("questions?")
     
     nextSlide()
 
-    svg.on('click', nextSlide)
-    $('body').on('keypress', -> nextSlide(); false)
+    nextS = _.debounce nextSlide, 200
+    svg.on('click', nextS)
+    $('body').on('keypress', -> nextS(); false)

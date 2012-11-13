@@ -38,7 +38,7 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
   countries_g = svg.append('svg:g')
                   .attr('class', 'countries')
 
-  users = svg.selectAll('circle.user')
+  users = svg.selectAll('g.user')
                 .data([], (d)->d.user_id)
   users = null
   stats = {}
@@ -47,35 +47,62 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
 
   
   listUsers = ->
-    perColumn = 20
-    spacing = (c.height-40)/perColumn
-    columnSpacing = (c.width-40)/5
-
+    perColumn = 10
+    padding = 40
+    spacing = (c.height-padding*2)/perColumn
+    columnSpacing = (c.width-padding*2)/5
     users.append('circle')
-            .attr('r', 5)
-            .attr('cy', (d,i)->20+(i%perColumn)*spacing)
+            .attr('class', 'user')
+            .attr('r', 24)
+            .attr('cy', (d,i)->padding+(i%perColumn)*spacing)
             .attr('cx', (d,i)->
               colN = Math.floor(i/perColumn)
-              20+colN*columnSpacing
+              padding+colN*columnSpacing
             )
-            .style('fill', '#FF6600')
+            .style('stroke', '#FF6600')
+            .style('stroke-width', 2)
 
-    users.append('text')
-            .text( (d)->d.screen_name)
-            .attr('y', (d,i)->20+(i%perColumn)*spacing+10)
+    clip = svg.append('clipPath')
+                .attr('id', 'clipcircle')
+                .attr('clipPathUnits', 'objectBoundingBox')
+              .append('circle')
+                .attr('r', 0.5)
+                .attr('cx', 0.5)
+                .attr('cy', 0.5)
+
+    users.append('image')
+            .attr('class', 'user')
+            .attr('xlink:href', (d)->d.avatar)
+            .attr('clipPath', (d)->d.avatar)
+            .attr('width', 48)
+            .attr('height', 48)
+            .attr('y', (d,i)->padding+(i%perColumn)*spacing - 24)
             .attr('x', (d,i)->
               colN = Math.floor(i/perColumn)
-              20+colN*columnSpacing
+              padding+colN*columnSpacing - 24
+            )
+            .style('fill', '#FF6600')
+            .style('clip-path', 'url(#clipcircle)')
+
+    users.append('text')
+            .attr('class', 'user')
+            .text( (d)->d.screen_name)
+            .attr('y', (d,i)->padding+(i%perColumn)*spacing)
+            .attr('x', (d,i)->
+              colN = Math.floor(i/perColumn)
+              padding+colN*columnSpacing + 35
             )
             .style('fill', (d)->d.color)
+            .style('dominant-baseline', 'middle')
 
   force = null
   forceGraph = ->
     d3.json 'twitterdata/links.json', (links) ->
       force = d3.layout.force()
-                .charge(-50)
+                .charge(-100)
                 .linkDistance(400)
                 .size([c.width, c.height])
+                .gravity(0.05)
 
 
       find = (coll, test) ->
@@ -106,23 +133,25 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
                 .enter().append('line')
                     .attr('class', 'link')
                     .attr('stroke-width', (d)->thickness(d.value))
-                    .attr('stroke', '#ddd')
+                    .attr('stroke', '#ccc')
 
-      node = svg.selectAll('circle')
-                  .attr('class', 'node')
-                  .attr('r', 5)
-                  .style('fill', '#FF6600')
+      node = svg.selectAll('image.user')
 
-      nodetext = svg.selectAll('text')
+      nodeC = svg.selectAll('circle.user')
+
+      nodetext = svg.selectAll('text.user')
                     .attr('class', 'nodetext')
                     .text( (d)->d.screen_name)
 
       
       force.on 'tick', ->
-        node.attr('cx', (d) -> d.x)
+        node.attr('x', (d) -> d.x - 24)
+            .attr('y', (d) -> d.y - 24)
+
+        nodeC.attr('cx', (d) -> d.x)
             .attr('cy', (d) -> d.y)
 
-        nodetext.attr('x', (d) -> d.x)
+        nodetext.attr('x', (d) -> d.x + 30)
                 .attr('y', (d) -> d.y)
 
         link.attr('x1', (d) -> d.source.x)
@@ -189,7 +218,7 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
             .attr('y', c.height/2)
 
 
-    l = 1000
+    l = 10
     d3.timer (n) ->
       deg = (n/l)*360
       
@@ -224,6 +253,9 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
             .domain(stats.statuses_count)
             .range([0, c.height*0.75])
 
+    users.select('image')
+          .style('opacity', 0)
+
     users.select('circle')
           .transition().duration(c.transitionLength)
             .style('fill', 'none')
@@ -250,32 +282,24 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
             .range([0, c.height])
     y = (d,i) -> c.height - _y(d,i)
             
+    users.select('image')
+        .transition().duration(c.transitionLength)
+          .style('opacity', 1)
+          .attr('y', (d)->y(d.statuses_count) - 24)
+          .attr('x', c.width/2 - 24 )
+
     users.select('circle')
         .transition().duration(c.transitionLength)
-          .attr('r', 5)
+          .style('opacity', 0)
+          .attr('r', 24)
           .attr('cy', (d)->y(d.statuses_count) )
 
     users.select('text')
         .transition().duration(c.transitionLength)
-          .attr('x', (c.width/2)+3)
+          .attr('x', (c.width/2)+30)
           .attr('y', (d)->y(d.statuses_count) )
           .style('text-anchor', 'start')
-          .attr('transform', (d)->"rotate(0)")#, #{x(d.statuses_count)}, #{c.height/2})")
-
-  scaleTweetCountLog = ->
-    _y = d3.scale.linear()
-            .domain([stats.statuses_count[0], stats.statuses_count[1]/1000])
-            .range([0, c.height])
-    y = (d,i) -> c.height - _y(d,i)
-            
-    users.select('circle')
-        .transition().duration(c.transitionLength)
-          .attr('r', 5)
-          .attr('cy', (d)->y(d.statuses_count) )
-
-    users.select('text')
-        .transition().duration(c.transitionLength)
-          .attr('y', (d)->y(d.statuses_count) )
+          .attr('transform', (d)->"rotate(0)")
 
 
   addAxes = ->
@@ -374,6 +398,10 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
             .domain(stats.signed_up)
             .range([20, c.width-20])
 
+    users.select('image')
+        .transition().duration(c.transitionLength)
+          .attr('y', (d)->y(d.statuses_count) - 24)
+          .attr('x', (d)->x(d.signed_up) - 24)
 
     users.select('circle')
         .transition().duration(c.transitionLength)
@@ -382,7 +410,7 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
 
     users.select('text')
         .transition().duration(c.transitionLength)
-          .attr('x', (d)->x(d.signed_up) )
+          .attr('x', (d)->x(d.signed_up) + 30 )
           .attr('y', (d)->y(d.statuses_count) )
 
   geoTweet = ->
@@ -410,6 +438,7 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
         countries_g.selectAll('path')
                     .attr('d', clip)
         users.select('circle')
+                .style('opacity', 1)
                 .attr('cx', (d)->
                   projection(d.geocoords)[0]
                 )
@@ -463,6 +492,9 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
                 .enter().append('svg:path')
                   .attr('d', clip)
 
+      users.select('image')
+              .transition().duration(200)
+              .style('opacity', 0)
       users.select('text')
               .transition().duration(2000)
                 .attr('x', (d)->
@@ -474,12 +506,13 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
                 .attr('transform', (d,i) ->
                   angle = (i*10)%360
                   p = projection(d.geocoords)
-                  "rotate(#{angle},#{p[0]},#{p[1]})translate(15,0)"
+                  "rotate(#{angle},#{p[0]},#{p[1]})translate(25,0)"
                 )
-                .style('font-size', '15px')
+                .style('font-size', '20px')
 
       users.select('circle')
           .transition().duration(2000)
+            .style('opacity', 1)
             .attr('r', 3)
             .attr('cx', (d)->
               projection(d.geocoords)[0]
@@ -563,11 +596,11 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
         slides[currSlide]()
       currSlide++
 
-    slides.push slide("Hello")
-    slides.push philSlide
-    slides.push slide("d3.js")
-    slides.push slide("Showreel")
-    slides.push countDown
+    #slides.push slide("Hello")
+    #slides.push philSlide
+    #slides.push slide("d3.js")
+    #slides.push slide("Showreel")
+    #slides.push countDown
     slides.push listUsers
     slides.push forceGraph
     slides.push circleTweetCount
@@ -582,3 +615,4 @@ require ['jquery', 'd3', 'underscore'], ($,d3,_) ->
     nextSlide()
 
     svg.on('click', nextSlide)
+    $('body').on('keypress', -> nextSlide(); false)

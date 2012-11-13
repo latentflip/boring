@@ -13,7 +13,7 @@
 * Dom manipulation library. i.e. great for manipulating html and svg, useless for canvas (just doesn't even make sense in the context).
 * Declaritive not imperitive
 * A total mindfuck
-* Very powerful
+* Very powerfult
 
 # What it is not?
 

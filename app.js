@@ -2,7 +2,7 @@
 (function() {
 
   require(['jquery', 'd3', 'underscore'], function($, d3, _) {
-    var addAxes, addAxesAnnotations, c, circleTweetCount, countDown, countries_g, explode, force, forceGraph, geoTweet, links_g, listUsers, nextSlide, philSlide, removeAxes, scaleTweetCount, scaleTweetCountLog, scatterPlot, slide, stats, svg, users;
+    var addAxes, addAxesAnnotations, c, circleTweetCount, countDown, countries_g, explode, force, forceGraph, geoTweet, links_g, listUsers, nextSlide, philSlide, removeAxes, scaleTweetCount, scatterPlot, slide, stats, svg, users;
     c = {
       width: $(document).width() * 0.98,
       height: $(document).height() * 0.97,
@@ -13,41 +13,54 @@
     svg.append("svg:defs").append("svg:marker").attr("id", 'special-start').attr("viewBox", "0 0 10 10").attr("refX", 5).attr("refY", 0).attr("markerWidth", 6).attr("markerHeight", 12).attr("orient", "auto").append("svg:path").attr("d", "M 10,-5 L 0,0 L10,5");
     links_g = svg.append('svg:g').attr('class', 'links');
     countries_g = svg.append('svg:g').attr('class', 'countries');
-    users = svg.selectAll('circle.user').data([], function(d) {
+    users = svg.selectAll('g.user').data([], function(d) {
       return d.user_id;
     });
     users = null;
     stats = {};
     nextSlide = null;
     listUsers = function() {
-      var columnSpacing, perColumn, spacing;
-      perColumn = 20;
-      spacing = (c.height - 40) / perColumn;
-      columnSpacing = (c.width - 40) / 5;
-      users.append('circle').attr('r', 5).attr('cy', function(d, i) {
-        return 20 + (i % perColumn) * spacing;
+      var clip, columnSpacing, padding, perColumn, spacing;
+      perColumn = 10;
+      padding = 40;
+      spacing = (c.height - padding * 2) / perColumn;
+      columnSpacing = (c.width - padding * 2) / 5;
+      users.append('circle').attr('class', 'user').attr('r', 24).attr('cy', function(d, i) {
+        return padding + (i % perColumn) * spacing;
       }).attr('cx', function(d, i) {
         var colN;
         colN = Math.floor(i / perColumn);
-        return 20 + colN * columnSpacing;
-      }).style('fill', '#FF6600');
-      return users.append('text').text(function(d) {
-        return d.screen_name;
-      }).attr('y', function(d, i) {
-        return 20 + (i % perColumn) * spacing + 10;
+        return padding + colN * columnSpacing;
+      }).style('stroke', '#FF6600').style('stroke-width', 2);
+      clip = svg.append('clipPath').attr('id', 'clipcircle').attr('clipPathUnits', 'objectBoundingBox').append('circle').attr('r', 0.5).attr('cx', 0.5).attr('cy', 0.5);
+      users.append('image').attr('class', 'user').attr('xlink:href', function(d) {
+        return d.avatar;
+      }).attr('clipPath', function(d) {
+        return d.avatar;
+      }).attr('width', 48).attr('height', 48).attr('y', function(d, i) {
+        return padding + (i % perColumn) * spacing - 24;
       }).attr('x', function(d, i) {
         var colN;
         colN = Math.floor(i / perColumn);
-        return 20 + colN * columnSpacing;
+        return padding + colN * columnSpacing - 24;
+      }).style('fill', '#FF6600').style('clip-path', 'url(#clipcircle)');
+      return users.append('text').attr('class', 'user').text(function(d) {
+        return d.screen_name;
+      }).attr('y', function(d, i) {
+        return padding + (i % perColumn) * spacing;
+      }).attr('x', function(d, i) {
+        var colN;
+        colN = Math.floor(i / perColumn);
+        return padding + colN * columnSpacing + 35;
       }).style('fill', function(d) {
         return d.color;
-      });
+      }).style('dominant-baseline', 'middle');
     };
     force = null;
     forceGraph = function() {
       return d3.json('twitterdata/links.json', function(links) {
-        var find, link, node, nodetext, thickness;
-        force = d3.layout.force().charge(-50).linkDistance(400).size([c.width, c.height]);
+        var find, link, node, nodeC, nodetext, thickness;
+        force = d3.layout.force().charge(-100).linkDistance(400).size([c.width, c.height]).gravity(0.05);
         find = function(coll, test) {
           var i, _i, _ref;
           for (i = _i = 0, _ref = coll.length; _i < _ref; i = _i += 1) {
@@ -83,19 +96,25 @@
         ]);
         link = links_g.selectAll('line.link').data(links).enter().append('line').attr('class', 'link').attr('stroke-width', function(d) {
           return thickness(d.value);
-        }).attr('stroke', '#ddd');
-        node = svg.selectAll('circle').attr('class', 'node').attr('r', 5).style('fill', '#FF6600');
-        nodetext = svg.selectAll('text').attr('class', 'nodetext').text(function(d) {
+        }).attr('stroke', '#ccc');
+        node = svg.selectAll('image.user');
+        nodeC = svg.selectAll('circle.user');
+        nodetext = svg.selectAll('text.user').attr('class', 'nodetext').text(function(d) {
           return d.screen_name;
         });
         return force.on('tick', function() {
-          node.attr('cx', function(d) {
+          node.attr('x', function(d) {
+            return d.x - 24;
+          }).attr('y', function(d) {
+            return d.y - 24;
+          });
+          nodeC.attr('cx', function(d) {
             return d.x;
           }).attr('cy', function(d) {
             return d.y;
           });
           nodetext.attr('x', function(d) {
-            return d.x;
+            return d.x + 30;
           }).attr('y', function(d) {
             return d.y;
           });
@@ -125,7 +144,7 @@
       s.append('line').attr('x1', 0).attr('x2', c.width).attr('y1', c.height / 2).attr('y2', c.height / 2).attr('stroke', '#000').attr('stroke-width', 5);
       s.append('line').attr('x1', c.width / 2).attr('x2', c.width / 2).attr('y1', 0).attr('y2', c.height).attr('stroke', '#000').attr('stroke-width', 5);
       num = s.append('text').text('5').style('fill', '#000').style('font-size', 300).style('text-anchor', 'middle').style('dominant-baseline', 'central').attr('x', c.width / 2).attr('y', c.height / 2);
-      l = 1000;
+      l = 10;
       return d3.timer(function(n) {
         var count, deg, updown;
         deg = (n / l) * 360;
@@ -157,6 +176,7 @@
       force.stop();
       svg.selectAll('line.link').remove();
       r = d3.scale.log().domain(stats.statuses_count).range([0, c.height * 0.75]);
+      users.select('image').style('opacity', 0);
       users.select('circle').transition().duration(c.transitionLength).style('fill', 'none').attr('r', function(d) {
         return r(d.statuses_count);
       }).attr('cx', c.width / 2).attr('cy', c.height * 0.75);
@@ -178,26 +198,16 @@
       y = function(d, i) {
         return c.height - _y(d, i);
       };
-      users.select('circle').transition().duration(c.transitionLength).attr('r', 5).attr('cy', function(d) {
+      users.select('image').transition().duration(c.transitionLength).style('opacity', 1).attr('y', function(d) {
+        return y(d.statuses_count) - 24;
+      }).attr('x', c.width / 2 - 24);
+      users.select('circle').transition().duration(c.transitionLength).style('opacity', 0).attr('r', 24).attr('cy', function(d) {
         return y(d.statuses_count);
       });
-      return users.select('text').transition().duration(c.transitionLength).attr('x', (c.width / 2) + 3).attr('y', function(d) {
+      return users.select('text').transition().duration(c.transitionLength).attr('x', (c.width / 2) + 30).attr('y', function(d) {
         return y(d.statuses_count);
       }).style('text-anchor', 'start').attr('transform', function(d) {
         return "rotate(0)";
-      });
-    };
-    scaleTweetCountLog = function() {
-      var y, _y;
-      _y = d3.scale.linear().domain([stats.statuses_count[0], stats.statuses_count[1] / 1000]).range([0, c.height]);
-      y = function(d, i) {
-        return c.height - _y(d, i);
-      };
-      users.select('circle').transition().duration(c.transitionLength).attr('r', 5).attr('cy', function(d) {
-        return y(d.statuses_count);
-      });
-      return users.select('text').transition().duration(c.transitionLength).attr('y', function(d) {
-        return y(d.statuses_count);
       });
     };
     addAxes = function() {
@@ -240,13 +250,18 @@
         return c.height - _y(d, i);
       };
       x = d3.time.scale().domain(stats.signed_up).range([20, c.width - 20]);
+      users.select('image').transition().duration(c.transitionLength).attr('y', function(d) {
+        return y(d.statuses_count) - 24;
+      }).attr('x', function(d) {
+        return x(d.signed_up) - 24;
+      });
       users.select('circle').transition().duration(c.transitionLength).attr('cx', function(d) {
         return x(d.signed_up);
       }).attr('cy', function(d) {
         return y(d.statuses_count);
       });
       return users.select('text').transition().duration(c.transitionLength).attr('x', function(d) {
-        return x(d.signed_up);
+        return x(d.signed_up) + 30;
       }).attr('y', function(d) {
         return y(d.statuses_count);
       });
@@ -266,7 +281,7 @@
         var countries, delta, ease, originalOrigin, originalScale, redraw, scaleTimeLength, sease, spin, spinTimeLength, spun, startSpin;
         redraw = function() {
           countries_g.selectAll('path').attr('d', clip);
-          users.select('circle').attr('cx', function(d) {
+          users.select('circle').style('opacity', 1).attr('cx', function(d) {
             return projection(d.geocoords)[0];
           }).attr('cy', function(d) {
             return projection(d.geocoords)[1];
@@ -309,6 +324,7 @@
           return d3.timer(spin);
         };
         countries = countries_g.selectAll('path').data(collection.features).enter().append('svg:path').attr('d', clip);
+        users.select('image').transition().duration(200).style('opacity', 0);
         users.select('text').transition().duration(2000).attr('x', function(d) {
           return projection(d.geocoords)[0];
         }).attr('y', function(d) {
@@ -317,9 +333,9 @@
           var angle, p;
           angle = (i * 10) % 360;
           p = projection(d.geocoords);
-          return "rotate(" + angle + "," + p[0] + "," + p[1] + ")translate(15,0)";
-        }).style('font-size', '15px');
-        return users.select('circle').transition().duration(2000).attr('r', 3).attr('cx', function(d) {
+          return "rotate(" + angle + "," + p[0] + "," + p[1] + ")translate(25,0)";
+        }).style('font-size', '20px');
+        return users.select('circle').transition().duration(2000).style('opacity', 1).attr('r', 3).attr('cx', function(d) {
           return projection(d.geocoords)[0];
         }).attr('cy', function(d) {
           return projection(d.geocoords)[1];
@@ -374,11 +390,6 @@
         }
         return currSlide++;
       };
-      slides.push(slide("Hello"));
-      slides.push(philSlide);
-      slides.push(slide("d3.js"));
-      slides.push(slide("Showreel"));
-      slides.push(countDown);
       slides.push(listUsers);
       slides.push(forceGraph);
       slides.push(circleTweetCount);
@@ -389,7 +400,11 @@
       slides.push(explode);
       slides.push(slide("So like, wth?"));
       nextSlide();
-      return svg.on('click', nextSlide);
+      svg.on('click', nextSlide);
+      return $('body').on('keypress', function() {
+        nextSlide();
+        return false;
+      });
     });
   });
 

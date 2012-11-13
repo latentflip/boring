@@ -20,7 +20,6 @@ end
 
 class Locate
   def self.user(u)
-
     if u['status'] && u['status']['coordinates'] && u['status']['coordinates']['coordinates']
       return u['status']['coordinates']['coordinates']
     end
@@ -65,8 +64,9 @@ class Scrape
   def save_followings
     users = read { store[:users] }
     users.each do |screen_name, hash|
+      puts screen_name
       unless hash[:following]
-        following = Followings.for(screen_name)
+        following = Followings.for(screen_name) || []
         puts "Updated following for #{screen_name} to #{following[0..10].join(', ')}"
         update { store[:users][screen_name][:following] = following }
       end
@@ -92,7 +92,9 @@ class Scrape
   def locate_users
     users = read { store[:users] }
     users.each do |screen_name, hash|
+      puts screen_name
       unless hash[:coords]
+        puts hash[:extended_info]
         if location = Locate.user(hash[:extended_info])
           p location
           update {
@@ -101,6 +103,12 @@ class Scrape
         end
       end
     end
+  end
+
+  def delete_user
+    update {
+      store[:users].delete('iffanghu')
+    }
   end
 
 
@@ -155,6 +163,7 @@ end
 
 s = Scrape.new
 
+s.delete_user
 s.save_new_users
 s.save_followings
 s.save_user_info
@@ -166,4 +175,3 @@ end
 File.open('links.json', 'w+') do |f|
   f.write JSON.dump(s.links_json)
 end
-
